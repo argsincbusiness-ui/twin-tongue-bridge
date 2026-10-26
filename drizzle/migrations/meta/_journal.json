@@ -1,5 +1,20 @@
 {
   "version": "7",
   "dialect": "postgresql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792996257004,
+      "tag": "0000_studio_usage_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792996507738,
+      "tag": "0001_restrict_studio_metadata_grants",
+      "breakpoints": true
+    }
+  ]
 }
