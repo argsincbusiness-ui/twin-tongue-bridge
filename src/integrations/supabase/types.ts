@@ -264,6 +264,54 @@ export type Database = {
         }
         Relationships: []
       }
+      studio_ai_access: {
+        Row: {
+          denial_message: string
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          denial_message: string
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          denial_message?: string
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      studio_usage: {
+        Row: {
+          character_count: number
+          created_at: string
+          generation_kind: string
+          id: string
+          language: string
+          tool: string
+          user_id: string
+        }
+        Insert: {
+          character_count: number
+          created_at?: string
+          generation_kind?: string
+          id?: string
+          language: string
+          tool: string
+          user_id: string
+        }
+        Update: {
+          character_count?: number
+          created_at?: string
+          generation_kind?: string
+          id?: string
+          language?: string
+          tool?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           plan: string
