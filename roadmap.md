@@ -1,5 +1,10 @@
 # Roadmap
 
+- [ ] Studio: original-footage voice dub export with timing and browser errors
+- [ ] Studio: editable AI podcast scripts with input validation
+- [ ] Admin: private Studio generation metadata and daily/user totals
+- [ ] Verify Studio changes and existing tests
+
 - [x] EFT monetization: plans/limits (server-enforced), upgrade screen, admin dashboard, expiry banner, privacy page
 - [ ] Admin to fill in banking details + WhatsApp number in Admin → Settings (needs user input)
 - [x] Public website: feature overview, plans, FAQ, working app links, desktop/mobile and signed-in tool-entry verification
