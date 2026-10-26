@@ -14,6 +14,7 @@ export function createResponsesCall(
   instructions?: string,
   schema?: Parameters<typeof Output.object>[0]["schema"],
 ) {
+  let gatewayError: unknown;
   const runIdFetch = createLovableAiGatewayRunIdFetch(getLovableAiGatewayRunId(request));
   const provider = createOpenAI({
     baseURL: `${config.baseURL.replace(/\/+$/, "").replace(/\/v1$/, "")}/v1`,
@@ -25,6 +26,7 @@ export function createResponsesCall(
   const result = streamText({
     model: provider.responses(config.model),
     maxRetries: 0,
+    onError: ({ error }) => { gatewayError = error; },
     ...(schema ? { output: Output.object({ schema }) } : {}),
     // AI SDK 6 lacks `instructions`: rename this key to `system` there.
     ...(instructions ? { instructions } : {}),
@@ -46,6 +48,7 @@ export function createResponsesCall(
   });
   return {
     result,
+    getError: () => gatewayError,
     response: () =>
       withLovableAiGatewayRunIdHeader(result.toUIMessageStreamResponse({ sendReasoning: true }), runIdFetch),
   };
