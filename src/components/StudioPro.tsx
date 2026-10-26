@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Download, FileText, Film, GraduationCap, Loader, Mic, Mic2, Plus, Radio, Share2, Square, Trash2, Wand2 } from "lucide-react";
 import { LANGUAGES, getLanguage } from "@/lib/languages";
@@ -9,6 +9,10 @@ import {
   STUDIO_VOICES, audioToVideo, downloadBlob, extFor, joinClips, shareMedia, synthesize, transcribeFile,
   type SocialTarget,
 } from "@/lib/studio-audio";
+import { Button } from "@/components/ui/button";
+import { logStudioGeneration, writePodcastScript } from "@/lib/studio.functions";
+import { dubOriginalVideo } from "@/lib/studio/original-video";
+import type { StudioUsageInput } from "@/lib/studio/schema";
 import { cn } from "@/lib/utils";
 
 type Tab = "voiceover" | "dubbing" | "podcast" | "coach";
@@ -39,18 +43,26 @@ function VoiceSelect({ value, onChange }: { value: string; onChange: (v: string)
 }
 
 /** Player + save/export/share bar used by every Studio tool. */
-function Output({ audio, transcript, name }: { audio: Blob | null; transcript: string; name: string }) {
+function Output({ audio, transcript, name, originalVideo }: { audio: Blob | null; transcript: string; name: string; originalVideo?: Blob | null }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [video, setVideo] = useState<Blob | null>(null);
-  const url = audio ? URL.createObjectURL(audio) : null;
+  const [url, setUrl] = useState<string | null>(null);
+  const renderAbort = useRef<AbortController | null>(null);
+  useEffect(() => {
+    setVideo(null); setMsg(null);
+    const next = audio ? URL.createObjectURL(audio) : null;
+    setUrl(next);
+    return () => { if (next) URL.revokeObjectURL(next); renderAbort.current?.abort(); };
+  }, [audio, originalVideo]);
   if (!audio && !transcript) return null;
   const stamp = `${name}-${Date.now()}`;
-  const audioFile = () => new File([audio!], `${stamp}.${extFor(audio!)}`, { type: audio!.type });
+  const audioFile = () => { if (!audio) throw new Error("Generate audio first."); return new File([audio], `${stamp}.${extFor(audio)}`, { type: audio.type }); };
   const textFile = () => new File([transcript], `${stamp}.txt`, { type: "text/plain" });
   const makeVideo = async () => {
     if (video) return video;
-    const v = await audioToVideo(audio!, "Neural Duplex Studio", transcript);
+    if (!audio) throw new Error("Generate audio first.");
+    const v = await audioToVideo(audio, "Neural Duplex Studio", transcript);
     setVideo(v);
     return v;
   };
@@ -86,27 +98,36 @@ function Output({ audio, transcript, name }: { audio: Blob | null; transcript: s
       <div className="flex flex-wrap gap-2">
         {audio && (
           <>
-            <button className={ghost} disabled={!!busy} onClick={() => downloadBlob(audio, `${stamp}.${extFor(audio)}`)}>
+            <Button variant="ghost" className={ghost} disabled={!!busy} onClick={() => downloadBlob(audio, `${stamp}.${extFor(audio)}`)}>
               <Download className="h-3.5 w-3.5" /> Save audio ({extFor(audio).toUpperCase()})
-            </button>
-            <button className={ghost} disabled={!!busy} onClick={() => run("video", async () => {
+            </Button>
+            <Button variant="ghost" className={ghost} disabled={!!busy} onClick={() => run("video", async () => {
               const v = await makeVideo();
               downloadBlob(v, `${stamp}.${extFor(v)}`);
               return `Video saved (${extFor(v).toUpperCase()}).`;
             })}>
               {busy === "video" ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <Film className="h-3.5 w-3.5" />} Save video
-            </button>
+            </Button>
+            {originalVideo && <Button variant="outline" size="sm" className="h-auto whitespace-normal text-left" disabled={!!busy} onClick={() => run("original", async () => {
+              const controller = new AbortController(); renderAbort.current = controller;
+              setMsg("Rendering original footage…");
+              const result = await dubOriginalVideo(originalVideo, audio, setMsg, controller.signal);
+              downloadBlob(result.video, `${stamp}-original.${extFor(result.video)}`);
+              return `Video saved (original footage). ${result.warning}`;
+            })}>
+              {busy === "original" ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <Film className="h-3.5 w-3.5" />} Save video (original footage)
+            </Button>}
           </>
         )}
-        <button className={ghost} disabled={!transcript} onClick={() => downloadBlob(textFile(), textFile().name)}>
+        <Button variant="ghost" className={ghost} disabled={!transcript} onClick={() => downloadBlob(textFile(), textFile().name)}>
           <FileText className="h-3.5 w-3.5" /> Save transcript (.txt)
-        </button>
+        </Button>
       </div>
       <div className="flex flex-wrap gap-2">
         {socials.map((s) => (
-          <button key={s.t} className={ghost} disabled={!!busy} onClick={() => share(s.t, s.video)}>
+          <Button variant="ghost" key={s.t} className={ghost} disabled={!!busy} onClick={() => share(s.t, s.video)}>
             {busy === s.t ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />} {s.label}
-          </button>
+          </Button>
         ))}
       </div>
       {msg && <p role="status" aria-live="polite" className="text-xs text-muted-foreground">{msg}</p>}
@@ -128,7 +149,14 @@ function useRecorder(onDone: (b: Blob) => void) {
   return { on, start, stop: () => rec.current?.stop() };
 }
 
+function useStudioLog() {
+  const log = useServerFn(logStudioGeneration);
+  return (tool: StudioUsageInput["tool"], language: string, characterCount: number) =>
+    log({ data: { tool, language, characterCount } });
+}
+
 function VoiceOver() {
+  const log = useStudioLog();
   const [script, setScript] = useState("");
   const [lang, setLang] = useState("en-US");
   const [voice, setVoice] = useState("alloy");
@@ -137,16 +165,16 @@ function VoiceOver() {
   const [err, setErr] = useState<string | null>(null);
   const go = async () => {
     setBusy(true); setErr(null);
-    try { setAudio(await synthesize(script, lang, voice)); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+    try { setAudio(await synthesize(script, lang, voice)); await log("voice-over", lang, script.length); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   };
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">Paste or type a script (up to 10,000 characters), choose a language and voice, then generate. You can play, save or share the finished audio and transcript.</p>
       <textarea className={cn(field, "min-h-40")} maxLength={10000} placeholder="Type or paste your voice-over script…" value={script} onChange={(e) => setScript(e.target.value)} />
       <div className="grid gap-2 sm:grid-cols-2"><LangSelect value={lang} onChange={setLang} /><VoiceSelect value={voice} onChange={setVoice} /></div>
-      <button className={btn} disabled={busy || !script.trim()} onClick={go}>
+      <Button variant="ghost" className={btn} disabled={busy || !script.trim()} onClick={go}>
         {busy ? <Loader className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />} Generate voice-over
-      </button>
+      </Button>
       {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
       <Output audio={audio} transcript={audio ? script : ""} name="voiceover" />
     </div>
@@ -154,6 +182,9 @@ function VoiceOver() {
 }
 
 function Dubbing() {
+  const log = useStudioLog();
+  const [putOnOriginal, setPutOnOriginal] = useState(false);
+  const [dubVideo, setDubVideo] = useState<Blob | null>(null);
   const translateFn = useCountedFn(useServerFn(translate));
   const [from, setFrom] = useState("en-US");
   const [to, setTo] = useState("zu-ZA");
@@ -164,7 +195,7 @@ function Dubbing() {
   const [audio, setAudio] = useState<Blob | null>(null);
   const [step, setStep] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const rec = useRecorder(setSource);
+  const rec = useRecorder((clip) => { setSource(clip); setPutOnOriginal(false); setAudio(null); setDubVideo(null); });
   const go = async () => {
     setErr(null); setAudio(null);
     try {
@@ -176,34 +207,54 @@ function Dubbing() {
       setDubbed(r.translated);
       setStep("Recording dub…");
       setAudio(await synthesize(r.translated, to, voice));
+      setDubVideo(putOnOriginal && source?.type.startsWith("video/") ? source : null);
+      await log("dubbing", to, r.translated.length);
     } catch (e) { setErr((e as Error).message); } finally { setStep(null); }
   };
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">Record or upload a short audio or video clip. We transcribe what is said, translate it into your chosen language and re-voice it. Clear speech with little background noise works best.</p>
+      <p className="text-xs text-muted-foreground">Record or upload a short audio or video clip. We transcribe what is said, translate it into your chosen language and re-voice it. Clear speech with little background noise works best. This is a voice dub, not lip-sync.</p>
       <div className="flex flex-wrap items-center gap-2">
         <label className={ghost}>
           <Plus className="h-3.5 w-3.5" /> Upload audio / video
-          <input type="file" accept="audio/*,video/*" className="hidden" onChange={(e) => { setSource(e.target.files?.[0] ?? null); setOriginal(""); }} />
+          <input type="file" accept="audio/*,video/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0] ?? null; setSource(file); setOriginal(""); setAudio(null); setDubVideo(null); setPutOnOriginal(file?.type.startsWith("video/") ?? false); }} />
         </label>
-        <button className={ghost} onClick={() => (rec.on ? rec.stop() : (setOriginal(""), rec.start()))}>
+        <Button variant="ghost" className={ghost} onClick={() => (rec.on ? rec.stop() : (setOriginal(""), rec.start()))}>
           {rec.on ? <Square className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />} {rec.on ? "Stop recording" : "Record"}
-        </button>
+        </Button>
         {source && <span className="text-xs text-muted-foreground">Clip ready ({Math.round(source.size / 1024)} KB)</span>}
       </div>
+      {source?.type.startsWith("video/") && <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={putOnOriginal} disabled={!!step} onChange={e => setPutOnOriginal(e.target.checked)} /> Put dub on original video
+      </label>}
       <textarea className={cn(field, "min-h-24")} maxLength={10000} placeholder="Original words (filled automatically from your clip, or type them)" value={original} onChange={(e) => setOriginal(e.target.value)} />
       <div className="grid gap-2 sm:grid-cols-3"><LangSelect value={from} onChange={setFrom} /><LangSelect value={to} onChange={setTo} /><VoiceSelect value={voice} onChange={setVoice} /></div>
-      <button className={btn} disabled={!!step || (!source && !original.trim())} onClick={go}>
+      <Button variant="ghost" className={btn} disabled={!!step || (!source && !original.trim())} onClick={go}>
         {step ? <Loader className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />} {step ?? "Dub it"}
-      </button>
+      </Button>
       {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
-      <Output audio={audio} transcript={audio ? `Original (${getLanguage(from)?.name}):\n${original}\n\nDub (${getLanguage(to)?.name}):\n${dubbed}` : ""} name="dub" />
+      <Output audio={audio} transcript={audio ? `Original (${getLanguage(from)?.name}):\n${original}\n\nDub (${getLanguage(to)?.name}):\n${dubbed}` : ""} name="dub" originalVideo={dubVideo} />
     </div>
   );
 }
 
 interface Line { host: 0 | 1; text: string }
 function Podcast() {
+  const log = useStudioLog();
+  const writeScript = useServerFn(writePodcastScript);
+  const [topic, setTopic] = useState("");
+  const [tone, setTone] = useState<"friendly" | "professional" | "energetic">("friendly");
+  const [length, setLength] = useState<"short" | "medium" | "long">("short");
+  const [writing, setWriting] = useState(false);
+  const write = async () => {
+    if (!topic.trim() || topic.length > 10000) { setErr("Type a topic or paste up to 10,000 characters first."); return; }
+    setWriting(true); setErr(null);
+    try {
+      const result = await writeScript({ data: { input: topic, tone, length, language: getLanguage(lang)?.name ?? lang } });
+      if (result.error || !result.lines) throw new Error(result.error || "No script came back. Please try again later.");
+      setLines(result.lines); setNames(["Host A", "Host B"]); setAudio(null);
+    } catch (e) { setErr((e as Error).message); } finally { setWriting(false); }
+  };
   const [title, setTitle] = useState("My podcast");
   const [lang, setLang] = useState("en-US");
   const [voices, setVoices] = useState<[string, string]>(["alloy", "onyx"]);
@@ -223,6 +274,7 @@ function Podcast() {
       }
       setProgress("Mixing episode…");
       setAudio(await joinClips(clips));
+      await log("podcast", lang, filled.reduce((sum, line) => sum + line.text.length, 0));
     } catch (e) { setErr((e as Error).message); } finally { setProgress(null); }
   };
   const set = (i: number, p: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...p } : l)));
@@ -231,6 +283,16 @@ function Podcast() {
       <p className="text-xs text-muted-foreground">Give your episode a title, choose a language and a voice for each host, then write the lines in order. Each line is spoken by its host and joined into one episode.</p>
       <input className={field} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Episode title" />
       <LangSelect value={lang} onChange={setLang} />
+      <fieldset className="space-y-2 border-y border-border py-3" disabled={writing || !!progress}>
+        <legend className="px-1 text-sm font-medium">Write script for me</legend>
+        <textarea aria-label="Podcast topic or source text" className={cn(field, "min-h-24")} maxLength={10000} value={topic} onChange={e => setTopic(e.target.value)} placeholder="Paste text or type a topic…" />
+        <p className="text-xs text-muted-foreground">{topic.length.toLocaleString()} / 10,000</p>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-xs text-muted-foreground">Tone<select aria-label="Script tone" className={field} value={tone} onChange={e => setTone(e.target.value as typeof tone)}><option value="friendly">Friendly</option><option value="professional">Professional</option><option value="energetic">Energetic</option></select></label>
+          <label className="text-xs text-muted-foreground">Length<select aria-label="Script length" className={field} value={length} onChange={e => setLength(e.target.value as typeof length)}><option value="short">Short</option><option value="medium">Medium</option><option value="long">Long</option></select></label>
+        </div>
+        <Button size="sm" disabled={writing || !!progress || !topic.trim()} onClick={write}>{writing ? <Loader className="animate-spin" /> : <Wand2 />} {writing ? "Writing script…" : "Write script"}</Button>
+      </fieldset>
       <div className="grid gap-2 sm:grid-cols-2">
         {[0, 1].map((h) => (
           <div key={h} className="space-y-1">
@@ -241,18 +303,18 @@ function Podcast() {
       </div>
       {lines.map((l, i) => (
         <div key={i} className="flex gap-2">
-          <select className={cn(field, "w-32")} value={l.host} onChange={(e) => set(i, { host: Number(e.target.value) as 0 | 1 })}>
+          <select className={cn(field, "w-24 shrink-0 sm:w-32")} value={l.host} onChange={(e) => set(i, { host: Number(e.target.value) as 0 | 1 })}>
             <option value={0}>{names[0]}</option><option value={1}>{names[1]}</option>
           </select>
-          <textarea className={cn(field, "min-h-12")} value={l.text} onChange={(e) => set(i, { text: e.target.value })} placeholder="What they say…" />
-          <button className={ghost} aria-label="Remove line" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}><Trash2 className="h-3.5 w-3.5" /></button>
+          <textarea className={cn(field, "min-h-12 min-w-0")} value={l.text} onChange={(e) => set(i, { text: e.target.value })} placeholder="What they say…" />
+          <Button variant="ghost" className={ghost} aria-label="Remove line" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}><Trash2 className="h-3.5 w-3.5" /></Button>
         </div>
       ))}
       <div className="flex gap-2">
-        <button className={ghost} onClick={() => setLines((ls) => [...ls, { host: ls.length % 2 ? 1 : 0, text: "" } as Line])}><Plus className="h-3.5 w-3.5" /> Add line</button>
-        <button className={btn} disabled={!!progress || filled.length === 0} onClick={go}>
+        <Button variant="ghost" className={ghost} onClick={() => setLines((ls) => [...ls, { host: ls.length % 2 ? 1 : 0, text: "" } as Line])}><Plus className="h-3.5 w-3.5" /> Add line</Button>
+        <Button variant="ghost" className={btn} disabled={writing || !!progress || filled.length === 0} onClick={go}>
           {progress ? <Loader className="h-4 w-4 animate-spin" /> : <Radio className="h-4 w-4" />} {progress ?? "Produce episode"}
-        </button>
+        </Button>
       </div>
       {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
       <Output audio={audio} transcript={audio ? `${title}\n\n${filled.map((l) => `${names[l.host]}: ${l.text}`).join("\n")}` : ""} name="podcast" />
@@ -261,6 +323,7 @@ function Podcast() {
 }
 
 function Coach() {
+  const log = useStudioLog();
   const coachFn = useServerFn(coachTurn);
   const [lang, setLang] = useState("en-US");
   const [native, setNative] = useState("en-US");
@@ -286,6 +349,7 @@ function Coach() {
       setNotes(text);
       setBusy("Recording reference read…");
       setAudio(await synthesize(r.natural || script, lang, "fable"));
+      await log("coach", lang, script.length);
     } catch (e) { setErr((e as Error).message); } finally { setBusy(null); }
   };
   return (
@@ -297,12 +361,12 @@ function Coach() {
       </div>
       <textarea className={cn(field, "min-h-24")} maxLength={10000} value={script} onChange={(e) => setScript(e.target.value)} placeholder="Your line…" />
       <div className="flex gap-2">
-        <button className={ghost} onClick={() => (rec.on ? rec.stop() : rec.start())}>
+        <Button variant="ghost" className={ghost} onClick={() => (rec.on ? rec.stop() : rec.start())}>
           {rec.on ? <Square className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />} {rec.on ? "Stop" : "Record my take"}
-        </button>
-        <button className={btn} disabled={!!busy || !script.trim()} onClick={go}>
+        </Button>
+        <Button variant="ghost" className={btn} disabled={!!busy || !script.trim()} onClick={go}>
           {busy ? <Loader className="h-4 w-4 animate-spin" /> : <GraduationCap className="h-4 w-4" />} {busy ?? "Coach me"}
-        </button>
+        </Button>
       </div>
       {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
       <Output audio={audio} transcript={notes} name="coach" />
@@ -317,12 +381,12 @@ export function StudioPro() {
     <section className="mx-auto w-full max-w-3xl space-y-4 p-4">
       <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1">
         {TABS.map(({ key, label, icon: Icon }) => (
-          <button key={key} onClick={() => setTab(key)} className={cn(
+          <Button variant="ghost" key={key} onClick={() => setTab(key)} className={cn(
             "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
             tab === key ? "bg-primary text-primary-foreground" : "text-foreground/70 hover:bg-secondary",
           )}>
             <Icon className="h-3.5 w-3.5" /> {label}
-          </button>
+          </Button>
         ))}
       </div>
       {tab === "voiceover" && <VoiceOver />}

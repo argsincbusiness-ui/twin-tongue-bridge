@@ -7,6 +7,7 @@ import { useAuth, signOut } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthScreen } from "@/components/AuthScreen";
 import type { Tables } from "@/integrations/supabase/types";
+import { StudioUsage } from "@/components/StudioUsage";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin")({
@@ -24,7 +25,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-const TABS = ["Pending Payments", "Users", "Subscriptions", "Settings", "Stats"] as const;
+const TABS = ["Pending Payments", "Users", "Subscriptions", "Settings", "Stats", "Studio usage"] as const;
 type Tab = (typeof TABS)[number];
 
 type UserRow = {
@@ -143,6 +144,7 @@ function AdminPage() {
         {tab === "Subscriptions" && <Subs users={users} busy={busy} run={run} />}
         {tab === "Settings" && <Settings />}
         {tab === "Stats" && <Stats />}
+        {tab === "Studio usage" && <StudioUsage emailOf={emailOf} />}
       </div>
     </main>
   );
