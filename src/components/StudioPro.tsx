@@ -258,7 +258,6 @@ function Podcast() {
   };
   const [title, setTitle] = useState("My podcast");
   const [lang, setLang] = useState("en-US");
-  <VoiceSelectorPlaceholder />
   const [voices, setVoices] = useState<[string, string]>(["alloy", "onyx"]);
   const [names, setNames] = useState<[string, string]>(["Host A", "Host B"]);
   const [lines, setLines] = useState<Line[]>([{ host: 0, text: "" }, { host: 1, text: "" }]);
@@ -285,6 +284,7 @@ function Podcast() {
       <p className="text-xs text-muted-foreground">Give your episode a title, choose a language and a voice for each host, then write the lines in order. Each line is spoken by its host and joined into one episode.</p>
       <input className={field} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Episode title" />
       <LangSelect value={lang} onChange={setLang} />
+      <VoiceSelector lang={lang} voiceControl={false} />
       <fieldset className="space-y-2 border-y border-border py-3" disabled={writing || !!progress}>
         <legend className="px-1 text-sm font-medium">Write script for me</legend>
         <textarea aria-label="Podcast topic or source text" className={cn(field, "min-h-24")} maxLength={10000} value={topic} onChange={e => setTopic(e.target.value)} placeholder="Paste text or type a topic…" />
@@ -350,7 +350,7 @@ function Coach() {
       ].join("\n");
       setNotes(text);
       setBusy("Recording reference read…");
-      setAudio(await synthesize(r.natural || script, lang, "fable"));
+      setAudio(await synthesize(r.natural || script, lang));
       await log("coach", lang, script.length);
     } catch (e) { setErr((e as Error).message); } finally { setBusy(null); }
   };
@@ -361,6 +361,7 @@ function Coach() {
         <div><span className="text-xs text-muted-foreground">Performing in</span><LangSelect value={lang} onChange={setLang} /></div>
         <div><span className="text-xs text-muted-foreground">Your language</span><LangSelect value={native} onChange={setNative} /></div>
       </div>
+      <VoiceSelector lang={lang} />
       <textarea className={cn(field, "min-h-24")} maxLength={10000} value={script} onChange={(e) => setScript(e.target.value)} placeholder="Your line…" />
       <div className="flex gap-2">
         <Button variant="ghost" className={ghost} onClick={() => (rec.on ? rec.stop() : rec.start())}>
