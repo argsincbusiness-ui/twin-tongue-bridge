@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { authHeaders } from "@/lib/api-auth";
+import { resolveVoiceStyle, ttsRequestBody } from "@/lib/voice-styles";
 
 /* ---------- Web Speech API typings (minimal) ---------- */
 type SpeechRecognitionResultLike = {
@@ -297,6 +298,10 @@ export function speak(
     return;
   }
 
+  // Global voice + style from the shared Voice Selector, resolved for this
+  // language (with fallback). Speed multiplies the user's own rate setting.
+  const styleSpeed = resolveVoiceStyle(lang).style.speed;
+
   // Flip the guard synchronously so any in-flight recognition callback
   // that fires between now and audio playback is discarded.
   ttsActive = true;
@@ -314,7 +319,7 @@ export function speak(
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-        body: JSON.stringify({ text: trimmed, lang, voice: opts.voice ?? "alloy" }),
+        body: JSON.stringify(ttsRequestBody(trimmed, lang, opts.voice)),
       });
       if (!res.ok || !res.body) {
         let msg = `TTS failed (${res.status})`;
@@ -329,7 +334,7 @@ export function speak(
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
-      audio.playbackRate = opts.rate ?? outputRate;
+      audio.playbackRate = (opts.rate ?? outputRate) * styleSpeed;
       audio.volume = opts.volume ?? outputVolume;
       if (outputSinkId) {
         const sinkable = audio as HTMLAudioElement & {

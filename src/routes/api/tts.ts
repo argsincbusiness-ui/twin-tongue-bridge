@@ -59,10 +59,11 @@ function pcmToWav(pcm: Uint8Array, sampleRate = 24000, channels = 1, bits = 16):
 
 type Attempt = { ok: true; audio: Uint8Array } | { ok: false; status: number };
 
-async function geminiTts(key: string, model: string, text: string, lang: string, voice: string): Promise<Attempt> {
+async function geminiTts(key: string, model: string, text: string, lang: string, voice: string, instructions = ""): Promise<Attempt> {
+  const style = instructions ? ` Delivery style (do not read this note aloud): ${instructions}.` : "";
   const prompt = lang
-    ? `Read the following text aloud exactly as written, naturally, as a native ${lang} speaker with authentic pronunciation and intonation:\n\n${text}`
-    : `Read the following text aloud naturally:\n\n${text}`;
+    ? `Read the following text aloud exactly as written, naturally, as a native ${lang} speaker with authentic pronunciation and intonation.${style}\n\n${text}`
+    : `Read the following text aloud naturally, exactly as written.${style}\n\n${text}`;
   let res: Response;
   try {
     res = await fetch(
@@ -105,7 +106,7 @@ export const Route = createFileRoute("/api/tts")({
           return Response.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        let body: { text?: string; lang?: string; voice?: string };
+        let body: { text?: string; lang?: string; voice?: string; instructions?: string };
         try {
           body = (await request.json()) as typeof body;
         } catch {
@@ -122,6 +123,9 @@ export const Route = createFileRoute("/api/tts")({
 
         const voice = body.voice ?? "alloy";
         const lang = body.lang ?? "";
+        // Delivery instruction from the shared Voice Selector — applied to
+        // the synthesis, never spoken aloud.
+        const styleNote = (body.instructions ?? "").trim().slice(0, 500);
         const failures: string[] = [];
 
         // 1) Gemini TTS — fall through models on any non-OK except a rejected key.
@@ -129,7 +133,7 @@ export const Route = createFileRoute("/api/tts")({
         if (gKey) {
           const gVoice = VOICE_MAP[voice] ?? "Kore";
           for (const model of GEMINI_TTS_MODELS) {
-            const r = await geminiTts(gKey, model, text, lang, gVoice);
+            const r = await geminiTts(gKey, model, text, lang, gVoice, styleNote);
             if (r.ok) {
               const bytes = new Uint8Array(new ArrayBuffer(r.audio.length));
               bytes.set(r.audio);
@@ -147,9 +151,14 @@ export const Route = createFileRoute("/api/tts")({
         // 2) Fallback: Lovable AI Gateway.
         const lKey = process.env.LOVABLE_API_KEY;
         if (lKey) {
-          const instructions = lang
-            ? `Speak naturally in ${lang} as a native speaker would. Read the text exactly as written.`
-            : "Speak naturally as a native speaker.";
+          const instructions = [
+            styleNote,
+            lang
+              ? `Speak naturally in ${lang} as a native speaker would. Read the text exactly as written.`
+              : "Speak naturally as a native speaker.",
+          ]
+            .filter(Boolean)
+            .join(" ");
           try {
             const upstream = await fetch("https://ai.gateway.lovable.dev/v1/audio/speech", {
               method: "POST",

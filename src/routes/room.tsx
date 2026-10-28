@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { AuthScreen } from "@/components/AuthScreen";
 import { translate } from "@/lib/translate.functions";
 import { useRecognition, speak, cancelSpeak } from "@/hooks/useSpeech";
+import { VoiceSelector } from "@/components/VoiceSelector";
 import { LANGUAGES, getLanguage } from "@/lib/languages";
 import { cn } from "@/lib/utils";
 import { ShareMenu } from "@/components/ShareMenu";
@@ -389,6 +390,8 @@ function Room({ userId, email }: { userId: string; email: string }) {
             </select>
           </label>
 
+          <VoiceSelector lang={myLang} />
+
           <button
             type="button"
             onClick={() => void createRoom()}
@@ -503,6 +506,11 @@ function Room({ userId, email }: { userId: string; email: string }) {
           {participants.length}/{MAX_PARTICIPANTS}
         </span>
       </div>
+
+      <div className="border-b border-border px-4 py-2">
+        <VoiceSelector lang={myLang} />
+      </div>
+
 
       <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {messages.length === 0 && (

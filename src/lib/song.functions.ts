@@ -10,6 +10,8 @@ export const SongInputSchema = z.object({
   voice: z.enum(["male", "female", "duet"]),
   genre: z.string().min(1).max(40),
   customStyle: z.string().max(200).optional(),
+  /** Vocal delivery hint derived from the global Voice Style (Sing It). */
+  delivery: z.string().max(200).optional(),
   bpm: z.number().int().min(60).max(180).nullable(),
   music: z.enum(["full", "light", "soft", "acapella"]),
   mood: z.string().max(30).optional(),
@@ -51,7 +53,7 @@ export const createSong = createServerFn({ method: "POST" })
     const tempo = data.bpm ? `around ${data.bpm} BPM` : "a tempo that suits the genre";
     const lengthHint =
       data.length === "medium" ? "Make the song about 1 to 2 minutes long." : data.length === "full" ? "Make it a complete song of about 3 minutes with intro, verses, choruses and outro." : "";
-    const prompt = `A ${style} song with ${VOICE_DESC[data.voice]} clearly sung lyrics with melody. Music: ${MUSIC_DESC[data.music]}. Tempo: ${tempo}.${data.mood ? ` Mood: ${data.mood}.` : ""} Sing in the language of the lyrics, exactly as written. ${lengthHint}\nLyrics:\n${lyrics}`;
+    const prompt = `A ${style} song with ${VOICE_DESC[data.voice]} clearly sung lyrics with melody. Music: ${MUSIC_DESC[data.music]}. Tempo: ${tempo}.${data.mood ? ` Mood: ${data.mood}.` : ""}${data.delivery ? ` Vocal delivery: ${data.delivery}.` : ""} Sing in the language of the lyrics, exactly as written. ${lengthHint}\nLyrics:\n${lyrics}`;
 
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Singing isn't configured yet.");

@@ -7,6 +7,8 @@ import { LANGUAGES } from "@/lib/languages";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { StudioMixer } from "@/components/StudioMixer";
+import { VoiceSelector } from "@/components/VoiceSelector";
+import { getStyle, getVoicePrefs } from "@/lib/voice-styles";
 
 const GENRES = ["Pop", "Afrobeats", "Amapiano", "Gospel", "R&B", "Hip-Hop/Rap", "Reggae", "Country", "Rock", "Jazz", "Lullaby / Children's song", "Latin", "Acoustic Folk", "EDM/Dance"];
 const MOODS = ["happy", "sad", "romantic", "inspirational", "calm", "energetic"];
@@ -101,6 +103,8 @@ export function SingIt() {
     setError(null);
     rec.stop();
     try {
+      // Style shapes the vocal delivery where it makes sense for singing.
+      const delivery = getStyle(getVoicePrefs().styleId).singHint;
       const row = (await create({
         data: {
           text,
@@ -108,6 +112,7 @@ export function SingIt() {
           voice,
           genre,
           customStyle: customStyle || undefined,
+          delivery: delivery || undefined,
           bpm: aiTempo ? null : bpm,
           music,
           mood: mood || undefined,
@@ -195,6 +200,9 @@ export function SingIt() {
         <Chip on={voice === "female"} onClick={() => setVoice("female")}>Female</Chip>
         <Chip on={voice === "duet"} onClick={() => setVoice("duet")}>Duet</Chip>
       </Group>
+
+      <VoiceSelector lang={micLang} voiceControl={false} />
+
 
       <Group title="Genre">
         {GENRES.map((g) => (

@@ -9,6 +9,7 @@ import {
   STUDIO_VOICES, audioToVideo, downloadBlob, extFor, joinClips, shareMedia, synthesize, transcribeFile,
   type SocialTarget,
 } from "@/lib/studio-audio";
+import { VoiceSelector } from "@/components/VoiceSelector";
 import { Button } from "@/components/ui/button";
 import { logStudioGeneration, writePodcastScript } from "@/lib/studio.functions";
 import { dubOriginalVideo } from "@/lib/studio/original-video";
@@ -159,19 +160,19 @@ function VoiceOver() {
   const log = useStudioLog();
   const [script, setScript] = useState("");
   const [lang, setLang] = useState("en-US");
-  const [voice, setVoice] = useState("alloy");
   const [audio, setAudio] = useState<Blob | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const go = async () => {
     setBusy(true); setErr(null);
-    try { setAudio(await synthesize(script, lang, voice)); await log("voice-over", lang, script.length); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+    try { setAudio(await synthesize(script, lang)); await log("voice-over", lang, script.length); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   };
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">Paste or type a script (up to 10,000 characters), choose a language and voice, then generate. You can play, save or share the finished audio and transcript.</p>
       <textarea className={cn(field, "min-h-40")} maxLength={10000} placeholder="Type or paste your voice-over script…" value={script} onChange={(e) => setScript(e.target.value)} />
-      <div className="grid gap-2 sm:grid-cols-2"><LangSelect value={lang} onChange={setLang} /><VoiceSelect value={voice} onChange={setVoice} /></div>
+      <div className="grid gap-2 sm:grid-cols-2"><LangSelect value={lang} onChange={setLang} /></div>
+      <VoiceSelector lang={lang} />
       <Button variant="ghost" className={btn} disabled={busy || !script.trim()} onClick={go}>
         {busy ? <Loader className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />} Generate voice-over
       </Button>
@@ -188,7 +189,6 @@ function Dubbing() {
   const translateFn = useCountedFn(useServerFn(translate));
   const [from, setFrom] = useState("en-US");
   const [to, setTo] = useState("zu-ZA");
-  const [voice, setVoice] = useState("onyx");
   const [source, setSource] = useState<Blob | null>(null);
   const [original, setOriginal] = useState("");
   const [dubbed, setDubbed] = useState("");
@@ -206,7 +206,7 @@ function Dubbing() {
       const r = await translateFn({ data: { text, sourceLang: getLanguage(from)?.name ?? from, targetLang: getLanguage(to)?.name ?? to } });
       setDubbed(r.translated);
       setStep("Recording dub…");
-      setAudio(await synthesize(r.translated, to, voice));
+      setAudio(await synthesize(r.translated, to));
       setDubVideo(putOnOriginal && source?.type.startsWith("video/") ? source : null);
       await log("dubbing", to, r.translated.length);
     } catch (e) { setErr((e as Error).message); } finally { setStep(null); }
@@ -228,7 +228,8 @@ function Dubbing() {
         <input type="checkbox" checked={putOnOriginal} disabled={!!step} onChange={e => setPutOnOriginal(e.target.checked)} /> Put dub on original video
       </label>}
       <textarea className={cn(field, "min-h-24")} maxLength={10000} placeholder="Original words (filled automatically from your clip, or type them)" value={original} onChange={(e) => setOriginal(e.target.value)} />
-      <div className="grid gap-2 sm:grid-cols-3"><LangSelect value={from} onChange={setFrom} /><LangSelect value={to} onChange={setTo} /><VoiceSelect value={voice} onChange={setVoice} /></div>
+      <div className="grid gap-2 sm:grid-cols-2"><LangSelect value={from} onChange={setFrom} /><LangSelect value={to} onChange={setTo} /></div>
+      <VoiceSelector lang={to} />
       <Button variant="ghost" className={btn} disabled={!!step || (!source && !original.trim())} onClick={go}>
         {step ? <Loader className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />} {step ?? "Dub it"}
       </Button>
@@ -283,6 +284,7 @@ function Podcast() {
       <p className="text-xs text-muted-foreground">Give your episode a title, choose a language and a voice for each host, then write the lines in order. Each line is spoken by its host and joined into one episode.</p>
       <input className={field} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Episode title" />
       <LangSelect value={lang} onChange={setLang} />
+      <VoiceSelector lang={lang} voiceControl={false} />
       <fieldset className="space-y-2 border-y border-border py-3" disabled={writing || !!progress}>
         <legend className="px-1 text-sm font-medium">Write script for me</legend>
         <textarea aria-label="Podcast topic or source text" className={cn(field, "min-h-24")} maxLength={10000} value={topic} onChange={e => setTopic(e.target.value)} placeholder="Paste text or type a topic…" />
@@ -348,7 +350,7 @@ function Coach() {
       ].join("\n");
       setNotes(text);
       setBusy("Recording reference read…");
-      setAudio(await synthesize(r.natural || script, lang, "fable"));
+      setAudio(await synthesize(r.natural || script, lang));
       await log("coach", lang, script.length);
     } catch (e) { setErr((e as Error).message); } finally { setBusy(null); }
   };
@@ -359,6 +361,7 @@ function Coach() {
         <div><span className="text-xs text-muted-foreground">Performing in</span><LangSelect value={lang} onChange={setLang} /></div>
         <div><span className="text-xs text-muted-foreground">Your language</span><LangSelect value={native} onChange={setNative} /></div>
       </div>
+      <VoiceSelector lang={lang} />
       <textarea className={cn(field, "min-h-24")} maxLength={10000} value={script} onChange={(e) => setScript(e.target.value)} placeholder="Your line…" />
       <div className="flex gap-2">
         <Button variant="ghost" className={ghost} onClick={() => (rec.on ? rec.stop() : rec.start())}>

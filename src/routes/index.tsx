@@ -21,6 +21,7 @@ import { translate } from "@/lib/translate.functions";
 import { useRecognition, speak, cancelSpeak, hasWebSpeech } from "@/hooks/useSpeech";
 import { buildPreviewPlan } from "@/lib/preview";
 import { SpeakerPanel, type SpeakerStatus } from "@/components/SpeakerPanel";
+import { VoiceSelector } from "@/components/VoiceSelector";
 import { DuplexTalk } from "@/components/DuplexTalk";
 import { CameraTranslate } from "@/components/CameraTranslate";
 import { SingIt } from "@/components/SingIt";
@@ -446,6 +447,12 @@ function Translator({ isAdmin, userEmail }: { isAdmin: boolean; userEmail: strin
         </div>
       </header>
       <PlanBar />
+
+      {/* One shared voice + style setting for every speaking screen. */}
+      <div className="px-3 sm:px-6">
+        <VoiceSelector lang={isAutoLang(langB) ? (isAutoLang(langA) ? "en-US" : langA) : langB} />
+      </div>
+
 
       <div className="flex flex-1 flex-col gap-3 px-3 pb-3 sm:px-6 sm:pb-6">
         {mode === "duplex" ? (
