@@ -1,4 +1,5 @@
 import { authHeaders } from "@/lib/api-auth";
+import { ttsRequestBody } from "@/lib/voice-styles";
 
 /** Studio voices offered in the UI (mapped to natural neural voices server-side). */
 export const STUDIO_VOICES = [
@@ -10,12 +11,15 @@ export const STUDIO_VOICES = [
   { key: "shimmer", label: "Zephyr — calm" },
 ] as const;
 
-/** Render speech for a script through the app's voice engine. */
-export async function synthesize(text: string, lang: string, voice = "alloy"): Promise<Blob> {
+/**
+ * Render speech for a script through the app's voice engine. Voice and
+ * style default to the global Voice Selector preference.
+ */
+export async function synthesize(text: string, lang: string, voice?: string, styleId?: string): Promise<Blob> {
   const res = await fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-    body: JSON.stringify({ text: text.slice(0, 10000), lang, voice }),
+    body: JSON.stringify(ttsRequestBody(text.slice(0, 10000), lang, voice, styleId)),
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;

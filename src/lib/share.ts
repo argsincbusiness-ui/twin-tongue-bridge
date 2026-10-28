@@ -1,14 +1,16 @@
 import { authHeaders } from "@/lib/api-auth";
+import { ttsRequestBody } from "@/lib/voice-styles";
 
 /**
  * Fetch the neural TTS audio for a given translation and return it as
- * a File suitable for the Web Share API or a download link.
+ * a File suitable for the Web Share API or a download link. Uses the
+ * global voice + style chosen in the shared Voice Selector.
  */
 export async function fetchTtsFile(text: string, lang: string): Promise<File> {
   const res = await fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-    body: JSON.stringify({ text, lang, voice: "alloy" }),
+    body: JSON.stringify(ttsRequestBody(text, lang)),
   });
   if (!res.ok) throw new Error(`TTS failed (${res.status})`);
   const blob = await res.blob();
