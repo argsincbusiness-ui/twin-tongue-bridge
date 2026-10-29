@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { describe, expect, it, beforeEach, beforeAll, vi } from "vitest";
 
 import {
   VOICES,
@@ -11,6 +11,23 @@ import {
   subscribeVoicePrefs,
   ttsRequestBody,
 } from "./voice-styles";
+
+/**
+ * The store only ever touches window.localStorage (which is guarded for
+ * SSR). The suite runs in a Node environment, so provide the tiny surface
+ * the store needs and record what it persists.
+ */
+const store: Record<string, string> = {};
+beforeAll(() => {
+  (globalThis as Record<string, unknown>).window = {
+    localStorage: {
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => { store[k] = v; },
+      removeItem: (k: string) => { delete store[k]; },
+      clear: () => { for (const k of Object.keys(store)) delete store[k]; },
+    },
+  };
+});
 
 beforeEach(() => {
   window.localStorage.clear();

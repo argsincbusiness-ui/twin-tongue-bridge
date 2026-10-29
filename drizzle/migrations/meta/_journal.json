@@ -15,6 +15,13 @@
       "when": 1792996507738,
       "tag": "0001_restrict_studio_metadata_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793263170089,
+      "tag": "0002_restrict_function_execute",
+      "breakpoints": true
     }
   ]
 }
