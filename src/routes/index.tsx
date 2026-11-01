@@ -34,6 +34,7 @@ import { useAuth, signOut } from "@/hooks/useAuth";
 import { getLanguage, isAutoLang, AUTO_CODE, findLanguageByName } from "@/lib/languages";
 import { cn } from "@/lib/utils";
 import { PublicWebsite } from "@/components/PublicWebsite";
+import { GlobalNavigationShell } from "@/components/GlobalNavigationShell";
 
 
 export const Route = createFileRoute("/")({
@@ -74,7 +75,11 @@ function Page() {
   }
   if (!user) return <AuthScreen />;
   if (!access.hasAccess) return <InactiveScreen email={user.email ?? ""} access={access} />;
-  return <Translator isAdmin={access.isAdmin} userEmail={user.email ?? ""} />;
+  return (
+    <GlobalNavigationShell>
+      <Translator isAdmin={access.isAdmin} userEmail={user.email ?? ""} />
+    </GlobalNavigationShell>
+  );
 }
 
 type Side = "a" | "b";
