@@ -78,7 +78,7 @@ export function GlobalNavigationShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Content: offset for side nav on desktop, bottom tab bar on mobile */}
-      <div className="pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0 md:pl-56">{children}</div>
+      <div className="pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:pb-0 md:pl-56">{children}</div>
 
       {/* Mobile: fixed bottom tab bar */}
       <nav
@@ -98,12 +98,12 @@ export function GlobalNavigationShell({ children }: { children: ReactNode }) {
                   aria-current={active ? "page" : undefined}
                   aria-label={item.available ? item.label : `${item.label}, coming soon`}
                   className={cn(
-                    "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium",
+                    "flex flex-1 flex-col items-center justify-center gap-0.5 text-[9px] font-medium tracking-tight",
                     active ? "text-primary" : "cursor-not-allowed text-muted-foreground opacity-70",
                   )}
                 >
                   <Icon className="h-5 w-5" />
-                  <span className="max-w-full truncate px-0.5">{item.label}</span>
+                  <span className="min-w-0 max-w-full truncate px-0 text-[9px] leading-none">{item.label}</span>
                   {!item.available && (
                     <span className="text-[8px] font-semibold uppercase leading-none tracking-wide text-accent">
                       Soon
