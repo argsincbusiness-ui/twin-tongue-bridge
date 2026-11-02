@@ -17,6 +17,7 @@ import { Route as FeaturesRouteImport } from './routes/features'
 import { Route as InstallRouteImport } from './routes/install'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RoomRouteImport } from './routes/room'
 import { Route as UpgradeRouteImport } from './routes/upgrade'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
@@ -63,6 +64,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
   path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RoomRoute = RoomRouteImport.update({
   id: '/room',
   path: '/room',
@@ -98,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/install': typeof InstallRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/profile': typeof ProfileRoute
   '/room': typeof RoomRoute
   '/upgrade': typeof UpgradeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/install': typeof InstallRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/profile': typeof ProfileRoute
   '/room': typeof RoomRoute
   '/upgrade': typeof UpgradeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -129,6 +137,7 @@ export interface FileRoutesById {
   '/install': typeof InstallRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/profile': typeof ProfileRoute
   '/room': typeof RoomRoute
   '/upgrade': typeof UpgradeRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -146,6 +155,7 @@ export interface FileRouteTypes {
     | '/install'
     | '/pricing'
     | '/privacy'
+    | '/profile'
     | '/room'
     | '/upgrade'
     | '/api/transcribe'
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/install'
     | '/pricing'
     | '/privacy'
+    | '/profile'
     | '/room'
     | '/upgrade'
     | '/api/transcribe'
@@ -176,6 +187,7 @@ export interface FileRouteTypes {
     | '/install'
     | '/pricing'
     | '/privacy'
+    | '/profile'
     | '/room'
     | '/upgrade'
     | '/api/transcribe'
@@ -192,6 +204,7 @@ export interface RootRouteChildren {
   InstallRoute: typeof InstallRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
+  ProfileRoute: typeof ProfileRoute
   RoomRoute: typeof RoomRoute
   UpgradeRoute: typeof UpgradeRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
@@ -257,6 +270,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/room': {
       id: '/room'
       path: '/room'
@@ -304,6 +324,7 @@ const rootRouteChildren: RootRouteChildren = {
   InstallRoute: InstallRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
+  ProfileRoute: ProfileRoute,
   RoomRoute: RoomRoute,
   UpgradeRoute: UpgradeRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
