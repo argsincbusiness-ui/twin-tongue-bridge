@@ -1,7 +1,7 @@
 # Roadmap
 
 - [x] Stage 1: Global navigation shell (sidebar + mobile tab bar) around the signed-in Translator
-- [ ] Stage 2: Profile page inside the shell, reusing existing account/plan/usage features
+- [x] Stage 2: Profile page (/profile) inside the shell, reusing existing account/plan/usage features
 
 
 - [x] Studio: original-footage voice dub export with timing and browser errors

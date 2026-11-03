@@ -15,3 +15,4 @@
 - Studio usage stores metadata only, with service-side inserts and admin-only RLS reads; episode production logs once after mixing rather than once per speech line.
 - Podcast script writing uses a request-scoped streaming Responses SDK call and persists terminal access denials, preventing repeated blocked requests.
 - All speech generation uses one global voice + style preference (src/lib/voice-styles.ts) and the shared VoiceSelector component; add a style by appending one entry to VOICE_STYLES only — never add a second voice/style control or a second TTS code path.
+- The signed-in app shell is src/components/GlobalNavigationShell.tsx (sidebar on desktop, bottom tab bar on phones); it wraps the Translator on / and the Profile page on /profile. Add a nav destination by marking its NAV_ITEMS entry available with a real route and passing `active` on that route — never show a fake page for an unbuilt section.
