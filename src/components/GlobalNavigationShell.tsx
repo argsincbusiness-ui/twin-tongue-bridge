@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 
 /**
  * Global navigation shell.
- * "Home" and "Profile" are working destinations; Videos, Messages and
+ * "Home", "Videos" and "Profile" are working destinations; Messages and
  * Communities are placeholders for later stages and render disabled.
- */
+  */
 export type NavKey = "home" | "videos" | "messages" | "communities" | "profile";
 
 type NavItem = {
@@ -15,12 +15,12 @@ type NavItem = {
   label: string;
   icon: LucideIcon;
   available: boolean;
-  to?: "/" | "/profile";
+  to?: "/" | "/videos" | "/profile";
 };
 
 const NAV_ITEMS: NavItem[] = [
   { key: "home", label: "Home", icon: Home, available: true, to: "/" },
-  { key: "videos", label: "Videos", icon: PlaySquare, available: false },
+  { key: "videos", label: "Videos", icon: PlaySquare, available: true, to: "/videos" },
   { key: "messages", label: "Messages", icon: MessageCircle, available: false },
   { key: "communities", label: "Communities", icon: Users, available: false },
   { key: "profile", label: "Profile", icon: UserRound, available: true, to: "/profile" },
@@ -128,7 +128,7 @@ export function GlobalNavigationShell({
           ))}
         </nav>
         <p className="px-4 pb-4 text-[11px] leading-snug text-muted-foreground">
-          Videos, Messages and Communities are coming in later updates.
+          Messages and Communities are coming in later updates.
         </p>
       </aside>
 
