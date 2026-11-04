@@ -13,6 +13,8 @@ import { VoiceSelector } from "@/components/VoiceSelector";
 import { Button } from "@/components/ui/button";
 import { logStudioGeneration, writePodcastScript } from "@/lib/studio.functions";
 import { dubOriginalVideo } from "@/lib/studio/original-video";
+import { libraryTitle } from "@/lib/videos";
+import { readMediaDuration, saveVideo } from "@/lib/videos-library";
 import type { StudioUsageInput } from "@/lib/studio/schema";
 import { cn } from "@/lib/utils";
 
@@ -44,7 +46,7 @@ function VoiceSelect({ value, onChange }: { value: string; onChange: (v: string)
 }
 
 /** Player + save/export/share bar used by every Studio tool. */
-function Output({ audio, transcript, name, originalVideo }: { audio: Blob | null; transcript: string; name: string; originalVideo?: Blob | null }) {
+function Output({ audio, transcript, name, originalVideo, library }: { audio: Blob | null; transcript: string; name: string; originalVideo?: Blob | null; library?: { tool: string; language: string } }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [video, setVideo] = useState<Blob | null>(null);
@@ -117,6 +119,22 @@ function Output({ audio, transcript, name, originalVideo }: { audio: Blob | null
               return `Video saved (original footage). ${result.warning}`;
             })}>
               {busy === "original" ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <Film className="h-3.5 w-3.5" />} Save video (original footage)
+            </Button>}
+            {library && <Button variant="outline" size="sm" className="h-auto whitespace-normal text-left" disabled={!!busy} onClick={() => run("library", async () => {
+              const controller = new AbortController(); renderAbort.current = controller;
+              setMsg("Preparing video…");
+              const v = originalVideo ? (await dubOriginalVideo(originalVideo, audio, setMsg, controller.signal)).video : await makeVideo();
+              setMsg("Saving to your Videos…");
+              const durationSeconds = await readMediaDuration(audio);
+              const saved = await saveVideo(v, {
+                tool: library.tool,
+                language: library.language,
+                title: libraryTitle(library.tool, getLanguage(library.language)?.name ?? library.language),
+                durationSeconds,
+              });
+              return `Saved to your Videos page as “${saved.title}”.`;
+            })}>
+              {busy === "library" ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <UploadCloud className="h-3.5 w-3.5" />} Save to my Videos
             </Button>}
           </>
         )}
