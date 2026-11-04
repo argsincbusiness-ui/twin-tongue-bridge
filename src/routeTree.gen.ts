@@ -20,6 +20,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RoomRouteImport } from './routes/room'
 import { Route as UpgradeRouteImport } from './routes/upgrade'
+import { Route as VideosRouteImport } from './routes/videos'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiTtsRouteImport } from './routes/api/tts'
 import { Route as PaymentRefRouteImport } from './routes/payment.$ref'
@@ -79,6 +80,11 @@ const UpgradeRoute = UpgradeRouteImport.update({
   path: '/upgrade',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VideosRoute = VideosRouteImport.update({
+  id: '/videos',
+  path: '/videos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
   id: '/api/transcribe',
   path: '/api/transcribe',
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/room': typeof RoomRoute
   '/upgrade': typeof UpgradeRoute
+  '/videos': typeof VideosRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/payment/$ref': typeof PaymentRefRoute
@@ -123,6 +130,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/room': typeof RoomRoute
   '/upgrade': typeof UpgradeRoute
+  '/videos': typeof VideosRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/payment/$ref': typeof PaymentRefRoute
@@ -140,6 +148,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/room': typeof RoomRoute
   '/upgrade': typeof UpgradeRoute
+  '/videos': typeof VideosRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/payment/$ref': typeof PaymentRefRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/room'
     | '/upgrade'
+    | '/videos'
     | '/api/transcribe'
     | '/api/tts'
     | '/payment/$ref'
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/room'
     | '/upgrade'
+    | '/videos'
     | '/api/transcribe'
     | '/api/tts'
     | '/payment/$ref'
@@ -190,6 +201,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/room'
     | '/upgrade'
+    | '/videos'
     | '/api/transcribe'
     | '/api/tts'
     | '/payment/$ref'
@@ -207,6 +219,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   RoomRoute: typeof RoomRoute
   UpgradeRoute: typeof UpgradeRoute
+  VideosRoute: typeof VideosRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   ApiTtsRoute: typeof ApiTtsRoute
   PaymentRefRoute: typeof PaymentRefRoute
@@ -291,6 +304,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UpgradeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/videos': {
+      id: '/videos'
+      path: '/videos'
+      fullPath: '/videos'
+      preLoaderRoute: typeof VideosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/transcribe': {
       id: '/api/transcribe'
       path: '/api/transcribe'
@@ -327,6 +347,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   RoomRoute: RoomRoute,
   UpgradeRoute: UpgradeRoute,
+  VideosRoute: VideosRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   ApiTtsRoute: ApiTtsRoute,
   PaymentRefRoute: PaymentRefRoute,
