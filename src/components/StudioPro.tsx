@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Download, FileText, Film, GraduationCap, Loader, Mic, Mic2, Plus, Radio, Share2, Square, Trash2, Wand2 } from "lucide-react";
+import { Download, FileText, Film, GraduationCap, Loader, Mic, Mic2, Plus, Radio, Share2, Square, Trash2, UploadCloud, Wand2 } from "lucide-react";
 import { LANGUAGES, getLanguage } from "@/lib/languages";
 import { translate } from "@/lib/translate.functions";
 import { coachTurn } from "@/lib/coach.functions";
@@ -195,7 +195,7 @@ function VoiceOver() {
         {busy ? <Loader className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />} Generate voice-over
       </Button>
       {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
-      <Output audio={audio} transcript={audio ? script : ""} name="voiceover" />
+      <Output audio={audio} transcript={audio ? script : ""} name="voiceover" library={{ tool: "voice-over", language: lang }} />
     </div>
   );
 }
@@ -252,7 +252,7 @@ function Dubbing() {
         {step ? <Loader className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />} {step ?? "Dub it"}
       </Button>
       {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
-      <Output audio={audio} transcript={audio ? `Original (${getLanguage(from)?.name}):\n${original}\n\nDub (${getLanguage(to)?.name}):\n${dubbed}` : ""} name="dub" originalVideo={dubVideo} />
+      <Output audio={audio} transcript={audio ? `Original (${getLanguage(from)?.name}):\n${original}\n\nDub (${getLanguage(to)?.name}):\n${dubbed}` : ""} name="dub" originalVideo={dubVideo} library={{ tool: "dubbing", language: to }} />
     </div>
   );
 }
@@ -337,7 +337,7 @@ function Podcast() {
         </Button>
       </div>
       {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
-      <Output audio={audio} transcript={audio ? `${title}\n\n${filled.map((l) => `${names[l.host]}: ${l.text}`).join("\n")}` : ""} name="podcast" />
+      <Output audio={audio} transcript={audio ? `${title}\n\n${filled.map((l) => `${names[l.host]}: ${l.text}`).join("\n")}` : ""} name="podcast" library={{ tool: "podcast", language: lang }} />
     </div>
   );
 }
@@ -390,7 +390,7 @@ function Coach() {
         </Button>
       </div>
       {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
-      <Output audio={audio} transcript={notes} name="coach" />
+      <Output audio={audio} transcript={notes} name="coach" library={{ tool: "coach", language: lang }} />
     </div>
   );
 }
