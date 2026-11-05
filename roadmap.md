@@ -2,6 +2,7 @@
 
 - [x] Stage 1: Global navigation shell (sidebar + mobile tab bar) around the signed-in Translator
 - [x] Stage 2: Profile page (/profile) inside the shell, reusing existing account/plan/usage features
+- [x] Stage 2: Videos page (/videos) inside the shell — private per-user video library (uploads up to 200 MB, play/download/delete) with "Save to my Videos" in Studio (dubbing incl. original-footage, voice-over, podcast, coach)
 
 
 - [x] Studio: original-footage voice dub export with timing and browser errors
