@@ -62,6 +62,62 @@ export type Database = {
         }
         Relationships: []
       }
+      direct_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          last_message_at: string
+          participant_a: string
+          participant_b: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          participant_a: string
+          participant_b: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          participant_a?: string
+          participant_b?: string
+        }
+        Relationships: []
+      }
+      direct_messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "direct_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_requests: {
         Row: {
           amount: number
@@ -470,6 +526,17 @@ export type Database = {
         Args: { _room_id: string; _user_id: string }
         Returns: boolean
       }
+      list_direct_conversations: {
+        Args: never
+        Returns: {
+          id: string
+          last_message: string
+          last_message_at: string
+          other_display_name: string
+          other_email: string
+          other_user_id: string
+        }[]
+      }
       lookup_room_by_code: {
         Args: { _code: string }
         Returns: {
@@ -482,6 +549,14 @@ export type Database = {
         Returns: undefined
       }
       sast_today: { Args: never; Returns: string }
+      send_direct_message: {
+        Args: {
+          _body: string
+          _conversation_id: string
+          _recipient_email: string
+        }
+        Returns: undefined
+      }
       submit_payer_details: {
         Args: {
           _id: string
