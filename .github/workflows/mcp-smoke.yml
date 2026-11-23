@@ -9,33 +9,85 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+  deployments: read
+
 jobs:
   mcp-smoke:
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for the Vercel preview alias
+      - name: Wait for the Vercel preview deployment
+        id: preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          for attempt in $(seq 1 18); do
-            code=$(curl -sS -o /tmp/health.json -w '%{http_code}' "https://twin-tongue-bridge-git-fe-947230-argsincbusiness-3593s-projects.vercel.app/mcp/health" || true)
-            if [ "$code" = "200" ]; then
-              cat /tmp/health.json
-              break
-            fi
+          set -euo pipefail
+          preview_url=""
+          for attempt in $(seq 1 60); do
+            deployments=$(curl -fsS \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/deployments?sha=$DEPLOY_SHA&per_page=100")
+            while IFS= read -r deployment_id; do
+              [ -n "$deployment_id" ] || continue
+              status_json=$(curl -fsS \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/deployments/$deployment_id/statuses?per_page=10")
+              status=$(printf '%s' "$status_json" | jq -r '.[0].state // empty')
+              if [ "$status" = "success" ]; then
+                preview_url=$(printf '%s' "$status_json" | jq -r '.[0].environment_url // .[0].target_url // empty')
+                [ -n "$preview_url" ] && break
+              fi
+            done < <(printf '%s' "$deployments" | jq -r '.[] | select(.environment | test("^Preview"; "i")) | .id')
+            [ -n "$preview_url" ] && break
+            echo "Preview deployment not ready yet (attempt $attempt/60)."
             sleep 10
           done
-          test "$code" = "200"
+          if [ -z "$preview_url" ]; then
+            echo "::error::No successful Vercel Preview deployment was found for commit $DEPLOY_SHA."
+            exit 1
+          fi
+          case "$preview_url" in
+            http://*|https://*) ;;
+            *) preview_url="https://$preview_url" ;;
+          esac
+          echo "url=$preview_url" >> "$GITHUB_OUTPUT"
+          echo "Using Vercel preview: $preview_url"
+
+          for attempt in $(seq 1 18); do
+            code=$(curl -sS -o /tmp/health.json -w '%{http_code}' "$preview_url/mcp/health" || true)
+            if [ "$code" = "200" ]; then
+              cat /tmp/health.json
+              exit 0
+            fi
+            echo "Health endpoint returned HTTP $code (attempt $attempt/18)."
+            sleep 10
+          done
+          echo "::error::The Vercel preview became available, but /mcp/health did not return HTTP 200."
+          exit 1
+
       - name: Verify OAuth protected-resource metadata
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
         run: |
-          curl --fail-with-body -sS "https://twin-tongue-bridge-git-fe-947230-argsincbusiness-3593s-projects.vercel.app/.well-known/oauth-protected-resource/mcp" -o /tmp/resource.json
+          set -euo pipefail
+          curl --fail-with-body -sS "$PREVIEW_URL/.well-known/oauth-protected-resource/mcp" -o /tmp/resource.json
           cat /tmp/resource.json
           grep -q 'nyjcsedhyqpriskjzwhd.supabase.co/auth/v1' /tmp/resource.json
           grep -q 'authorization_servers' /tmp/resource.json
+
       - name: Verify unauthenticated MCP requests are challenged
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
         run: |
+          set -euo pipefail
           code=$(curl -sS -D /tmp/mcp.headers -o /tmp/mcp.json -w '%{http_code}' \
             -H 'content-type: application/json' \
             -H 'accept: application/json, text/event-stream' \
-            -X POST 'https://twin-tongue-bridge-git-fe-947230-argsincbusiness-3593s-projects.vercel.app/mcp' \
+            -X POST "$PREVIEW_URL/mcp" \
             --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"github-actions-smoke","version":"1.0.0"}}}')
           cat /tmp/mcp.json
           test "$code" = "401"
