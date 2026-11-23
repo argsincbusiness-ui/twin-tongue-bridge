@@ -44,6 +44,16 @@ export default {
     try {
       const pathname = new URL(request.url).pathname;
       if (pathname === "/api/live") return handleLiveRequest(request);
+      if (pathname === "/mcp/health" && request.method === "GET") {
+        return new Response(JSON.stringify({
+          name: "Twin Tongue Bridge MCP",
+          status: "ok",
+          transport: "Streamable HTTP",
+          endpoint: "/mcp",
+        }), {
+          headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+        });
+      }
       if (pathname === "/mcp") return handleMcpRequest(request);
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
