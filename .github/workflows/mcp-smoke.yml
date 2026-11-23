@@ -1,0 +1,56 @@
+name: MCP endpoint smoke test
+
+on:
+  push:
+    branches:
+      - feat/chatgpt-mcp-bridge
+  workflow_dispatch:
+
+jobs:
+  mcp-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for the Vercel preview alias
+        run: |
+          for attempt in $(seq 1 18); do
+            code=$(curl -sS -o /tmp/health.json -w '%{http_code}' "https://twin-tongue-bridge-git-fe-947230-argsincbusiness-3593s-projects.vercel.app/mcp/health" || true)
+            if [ "$code" = "200" ]; then
+              cat /tmp/health.json
+              break
+            fi
+            sleep 10
+          done
+          test "$code" = "200"
+      - name: Initialize MCP session
+        run: |
+          curl --fail-with-body -sS -D /tmp/init.headers \
+            -H 'content-type: application/json' \
+            -H 'accept: application/json, text/event-stream' \
+            -X POST 'https://twin-tongue-bridge-git-fe-947230-argsincbusiness-3593s-projects.vercel.app/mcp' \
+            --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"github-actions-smoke","version":"1.0.0"}}}' \
+            -o /tmp/init.json
+          cat /tmp/init.json
+          grep -q '"serverInfo"' /tmp/init.json
+          grep -qi 'application/json' /tmp/init.headers
+      - name: List MCP tools
+        run: |
+          curl --fail-with-body -sS \
+            -H 'content-type: application/json' \
+            -H 'accept: application/json, text/event-stream' \
+            -X POST 'https://twin-tongue-bridge-git-fe-947230-argsincbusiness-3593s-projects.vercel.app/mcp' \
+            --data '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
+            -o /tmp/tools.json
+          cat /tmp/tools.json
+          grep -q 'get_app_overview' /tmp/tools.json
+          grep -q 'open_twin_tongue_bridge' /tmp/tools.json
+      - name: Call public overview tool
+        run: |
+          curl --fail-with-body -sS \
+            -H 'content-type: application/json' \
+            -H 'accept: application/json, text/event-stream' \
+            -X POST 'https://twin-tongue-bridge-git-fe-947230-argsincbusiness-3593s-projects.vercel.app/mcp' \
+            --data '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_app_overview","arguments":{}}}' \
+            -o /tmp/call.json
+          cat /tmp/call.json
+          grep -q 'Twin Tongue Bridge' /tmp/call.json
+          grep -q 'translationRequiresAppSignIn' /tmp/call.json
