@@ -29,7 +29,7 @@ function json(data: unknown, status = 200): Response {
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
       "access-control-allow-origin": "*",
-      "access-control-allow-methods": "POST, GET, OPTIONS",
+      "access-control-allow-methods": "POST, OPTIONS",
       "access-control-allow-headers": "content-type, accept, mcp-session-id, mcp-protocol-version",
     },
   });
@@ -53,11 +53,14 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
   }
 
   if (request.method === "GET") {
-    return json({
-      name: "Twin Tongue Bridge MCP",
-      status: "ok",
-      transport: "Streamable HTTP",
-      endpoint: "/mcp",
+    // This server uses JSON responses to POST requests and does not open SSE streams.
+    return new Response(null, {
+      status: 405,
+      headers: {
+        allow: "POST, OPTIONS",
+        "access-control-allow-origin": "*",
+        "cache-control": "no-store",
+      },
     });
   }
 
