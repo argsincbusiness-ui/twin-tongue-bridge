@@ -20,9 +20,11 @@ jobs:
         id: preview
         env:
           PREVIEW_URL: https://twin-tongue-bridge-4ukxq5hgs-argsincbusiness-3593s-projects.vercel.app
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
           set -euo pipefail
-          code=$(curl -sS -D /tmp/health.headers -o /tmp/health.json -w '%{http_code}' "$PREVIEW_URL/mcp/health" || true)
+          code=$(curl -sS -D /tmp/health.headers -o /tmp/health.json -w '%{http_code}' \
+            -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" "$PREVIEW_URL/mcp/health" || true)
           if [ "$code" = "200" ]; then
             cat /tmp/health.json
             echo "url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
@@ -31,9 +33,9 @@ jobs:
           fi
           echo "Preview health endpoint returned HTTP $code."
           if [ "$code" = "302" ] || [ "$code" = "307" ]; then
-            echo "Vercel redirected this GitHub Actions runner, most likely because Deployment Protection is enabled."
+            echo "Vercel redirected this GitHub Actions runner, most likely because Deployment Protection is enabled or the bypass secret is missing/invalid."
             grep -i '^location:' /tmp/health.headers || true
-            echo "::error::Preview is protected. Add a Vercel Automation Bypass secret as the GitHub Actions secret VERCEL_AUTOMATION_BYPASS_SECRET, then pass it as x-vercel-protection-bypass on requests."
+            echo "::error::Preview is protected. Configure the Vercel Automation Bypass secret as the GitHub Actions secret VERCEL_AUTOMATION_BYPASS_SECRET."
           else
             cat /tmp/health.json
             cat /tmp/health.headers
