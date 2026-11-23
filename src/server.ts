@@ -44,6 +44,25 @@ export default {
     try {
       const pathname = new URL(request.url).pathname;
       if (pathname === "/api/live") return handleLiveRequest(request);
+      if (
+        request.method === "GET" &&
+        (pathname === "/.well-known/oauth-protected-resource" ||
+          pathname === "/.well-known/oauth-protected-resource/mcp")
+      ) {
+        return new Response(JSON.stringify({
+          resource: "https://twin-tongue-bridge.vercel.app/mcp",
+          authorization_servers: ["https://nyjcsedhyqpriskjzwhd.supabase.co/auth/v1"],
+          bearer_methods_supported: ["header"],
+          scopes_supported: ["openid", "email", "profile"],
+          resource_documentation: "https://twin-tongue-bridge.vercel.app",
+        }), {
+          headers: {
+            "content-type": "application/json; charset=utf-8",
+            "cache-control": "public, max-age=300",
+            "access-control-allow-origin": "*",
+          },
+        });
+      }
       if (pathname === "/mcp/health" && request.method === "GET") {
         return new Response(JSON.stringify({
           name: "Twin Tongue Bridge MCP",
