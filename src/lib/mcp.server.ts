@@ -70,9 +70,9 @@ function unauthorized(): Response {
 
 async function verifyBearerToken(request: Request): Promise<string | null> {
   const authorization = request.headers.get("authorization") ?? "";
-  if (!authorization.startsWith("Bearer ")) return false;
+  if (!authorization.startsWith("Bearer ")) return null;
   const token = authorization.slice(7).trim();
-  if (!token || token.length > 8192 || token.split(".").length !== 3) return false;
+  if (!token || token.length > 8192 || token.split(".").length !== 3) return null;
 
   const projectUrl = process.env["SUPABASE_URL"];
   const publishableKey =
