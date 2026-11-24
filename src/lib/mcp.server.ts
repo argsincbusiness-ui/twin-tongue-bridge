@@ -3,6 +3,7 @@
  * Supabase OAuth access tokens are verified before MCP methods are served.
  */
 import { createClient } from "@supabase/supabase-js";
+import { translateForMcp } from "@/lib/mcp-translate.server";
 
 const APP_URL = "https://twin-tongue-bridge.vercel.app";
 const RESOURCE_METADATA = APP_URL + "/.well-known/oauth-protected-resource/mcp";
@@ -20,6 +21,21 @@ const tools = [
     description:
       "Get the official Twin Tongue Bridge website link and instructions for opening its translation experience.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "translate_text",
+    description: "Translate text using the authenticated user Twin Tongue Bridge account. Uses the app translation providers and the same daily usage limits and Pro access rules. Set sourceLang to auto for language detection.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", minLength: 1, maxLength: 10000, description: "Text to translate." },
+        sourceLang: { type: "string", minLength: 2, maxLength: 35, description: "Source language name or BCP-47 tag; use auto to detect." },
+        targetLang: { type: "string", minLength: 2, maxLength: 35, description: "Target language name or BCP-47 tag." },
+        style: { type: "string", enum: ["natural", "casual", "professional", "formal", "friendly", "business"] },
+      },
+      required: ["text", "targetLang"],
+      additionalProperties: false,
+    },
   },
 ];
 
@@ -52,7 +68,7 @@ function unauthorized(): Response {
   );
 }
 
-async function verifyBearerToken(request: Request): Promise<boolean> {
+async function verifyBearerToken(request: Request): Promise<string | null> {
   const authorization = request.headers.get("authorization") ?? "";
   if (!authorization.startsWith("Bearer ")) return false;
   const token = authorization.slice(7).trim();
@@ -70,7 +86,7 @@ async function verifyBearerToken(request: Request): Promise<boolean> {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data, error } = await supabase.auth.getClaims(token);
-  return !error && !!data?.claims?.sub && data.claims.role === "authenticated";
+  return !error && !!data?.claims?.sub && data.claims.role === "authenticated" ? token : null;
 }
 
 export async function handleMcpRequest(request: Request): Promise<Response> {
@@ -100,8 +116,11 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
 
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  let accessToken: string;
   try {
-    if (!(await verifyBearerToken(request))) return unauthorized();
+    const verified = await verifyBearerToken(request);
+    if (!verified) return unauthorized();
+    accessToken = verified;
   } catch (error) {
     console.error("MCP auth verification failed:", error);
     return json({ error: "Authentication service unavailable" }, 503);
@@ -134,7 +153,7 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
         capabilities: { tools: { listChanged: false } },
         serverInfo: { name: "twin-tongue-bridge", version: "1.1.0" },
         instructions:
-          "Twin Tongue Bridge is an AI-powered multilingual interpreter. Use get_app_overview for public feature information and open_twin_tongue_bridge to direct the user to the app. This connection authenticates with the user's Twin Tongue Bridge account.",
+          "Twin Tongue Bridge is an AI-powered multilingual interpreter. Use get_app_overview for public feature information and open_twin_tongue_bridge to direct the user to the app. This connection authenticates with the user's Twin Tongue Bridge account. Use translate_text to translate text through the app, subject to the account's plan and usage limits.",
       },
     });
   }
@@ -190,6 +209,35 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
       });
     }
 
+    if (name === "translate_text") {
+      const args = message.params?.arguments ?? {};
+      if (typeof args.text !== "string" || typeof args.targetLang !== "string") {
+        return rpcError(id, -32602, "translate_text requires text and targetLang.");
+      }
+      try {
+        const translated = await translateForMcp(accessToken, {
+          text: args.text,
+          sourceLang: typeof args.sourceLang === "string" ? args.sourceLang : "auto",
+          targetLang: args.targetLang,
+          style: args.style,
+        });
+        return json({
+          jsonrpc: "2.0",
+          id,
+          result: {
+            content: [{ type: "text", text: translated.translated }],
+            structuredContent: translated,
+          },
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Translation failed.";
+        return json({
+          jsonrpc: "2.0",
+          id,
+          result: { isError: true, content: [{ type: "text", text: message }] },
+        });
+      }
+    }
     return rpcError(id, -32602, "Unknown tool");
   }
 
