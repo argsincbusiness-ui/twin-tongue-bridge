@@ -1,9 +1,9 @@
-name: MCP endpoint smoke test
+name: MCP production smoke test
 
 on:
   push:
     branches:
-      - feat/chatgpt-mcp-bridge
+      - main
   pull_request:
     branches:
       - main
@@ -16,57 +16,43 @@ jobs:
   mcp-smoke:
     runs-on: ubuntu-latest
     steps:
-      - name: Check the Vercel preview health endpoint
-        id: preview
+      - name: Check production MCP health endpoint
         env:
-          PREVIEW_URL: https://twin-tongue-bridge-4ukxq5hgs-argsincbusiness-3593s-projects.vercel.app
-          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          MCP_URL: https://twin-tongue-bridge.vercel.app
         run: |
           set -euo pipefail
-          code=$(curl -sS -D /tmp/health.headers -o /tmp/health.json -w '%{http_code}' \
-            -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" "$PREVIEW_URL/mcp/health" || true)
-          if [ "$code" = "200" ]; then
-            cat /tmp/health.json
-            echo "url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
-            echo "Using Vercel preview deployment: $PREVIEW_URL"
-            exit 0
-          fi
-          echo "Preview health endpoint returned HTTP $code."
-          if [ "$code" = "302" ] || [ "$code" = "307" ]; then
-            echo "Vercel redirected this GitHub Actions runner, most likely because Deployment Protection is enabled or the bypass secret is missing/invalid."
-            grep -i '^location:' /tmp/health.headers || true
-            echo "::error::Preview is protected. Configure the Vercel Automation Bypass secret as the GitHub Actions secret VERCEL_AUTOMATION_BYPASS_SECRET."
-          else
-            cat /tmp/health.json
-            cat /tmp/health.headers
-            echo "::error::The preview health endpoint did not return HTTP 200."
-          fi
-          exit 1
+          code=$(curl -sS -o /tmp/health.json -w '%{http_code}' "$MCP_URL/mcp/health")
+          cat /tmp/health.json
+          test "$code" = "200"
 
-      - name: Verify OAuth protected-resource metadata
+      - name: Verify production OAuth protected-resource metadata
         env:
-          PREVIEW_URL: ${{ steps.preview.outputs.url }}
-          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          MCP_URL: https://twin-tongue-bridge.vercel.app
         run: |
           set -euo pipefail
-          curl --fail-with-body -sS -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" "$PREVIEW_URL/.well-known/oauth-protected-resource/mcp" -o /tmp/resource.json
+          curl --fail-with-body -sS "$MCP_URL/.well-known/oauth-protected-resource/mcp" -o /tmp/resource.json
           cat /tmp/resource.json
           grep -q 'nyjcsedhyqpriskjzwhd.supabase.co/auth/v1' /tmp/resource.json
           grep -q 'authorization_servers' /tmp/resource.json
 
       - name: Verify unauthenticated MCP requests are challenged
         env:
-          PREVIEW_URL: ${{ steps.preview.outputs.url }}
-          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          MCP_URL: https://twin-tongue-bridge.vercel.app
         run: |
           set -euo pipefail
           code=$(curl -sS -D /tmp/mcp.headers -o /tmp/mcp.json -w '%{http_code}' \
-            -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
             -H 'content-type: application/json' \
             -H 'accept: application/json, text/event-stream' \
-            -X POST "$PREVIEW_URL/mcp" \
+            -X POST "$MCP_URL/mcp" \
             --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"github-actions-smoke","version":"1.0.0"}}}')
           cat /tmp/mcp.json
           test "$code" = "401"
           grep -qi 'www-authenticate: Bearer' /tmp/mcp.headers
           grep -q 'oauth-protected-resource/mcp' /tmp/mcp.headers
+
+      - name: Report authenticated translation test requirement
+        if: always()
+        run: |
+          echo "Production health, OAuth metadata, and unauthenticated auth challenge are checked here."
+          echo "A real translate_text call requires a dedicated test user's Supabase access token; never use a personal token."
+          echo "Configure MCP_TEST_ACCESS_TOKEN as a GitHub Actions secret and add an authenticated tools/call step before treating MCP translation as verified."
