@@ -53,7 +53,7 @@ export default {
           resource: "https://twin-tongue-bridge.vercel.app/mcp",
           authorization_servers: ["https://nyjcsedhyqpriskjzwhd.supabase.co/auth/v1"],
           bearer_methods_supported: ["header"],
-          scopes_supported: ["openid", "email", "profile"],
+          scopes_supported: ["openid", "profile", "email", "offline_access"],
           resource_documentation: "https://twin-tongue-bridge.vercel.app",
         }), {
           headers: {
