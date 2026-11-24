@@ -47,7 +47,7 @@ function unauthorized(): Response {
     { error: "Unauthorized" },
     401,
     {
-      "www-authenticate": `Bearer resource_metadata="${RESOURCE_METADATA}", authorization_uri="${AUTH_SERVER}/oauth/authorize", scope="openid email profile"`,
+      "www-authenticate": `Bearer resource_metadata="${RESOURCE_METADATA}", authorization_uri="${AUTH_SERVER}/oauth/authorize", scope="openid profile email offline_access"`,
     },
   );
 }
